@@ -2,12 +2,12 @@ const jwt = require("jsonwebtoken");
 
 const authentication = async function (req, res, next) {
   try {
-    const hedear = req.headers["x-api-key"];
-    if (!hedear)
+    const authToken = req.cookie["x-api-key"];
+    if (!authToken)
       return res
         .status(400)
         .send({ status: false, msg: "token is not present" });
-    jwt.verify(hedear, "my-self-key", function (err, token) {
+    jwt.verify(authToken, process.env.JWT_SECRET , function (err, token) {
       if (err) {
         return res
           .status(401)
@@ -17,6 +17,7 @@ const authentication = async function (req, res, next) {
           });
       } else {
         req.email = token.email;
+
         next();
       }
     });
