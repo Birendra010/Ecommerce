@@ -91,7 +91,7 @@ const loginUser = async function (req, res) {
     if (!Password) {
       return res.status(400).send({ msg: "Password is not present" });
     }
-    let user = await userModel.findOne({ email });
+    let user = await userModel.findOne({ email:email });
     if (!user) {
       return res
         .status(404)
@@ -101,13 +101,40 @@ const loginUser = async function (req, res) {
     if (!hashPassword) {
       return res.status(404).send({ msg: "email or Password are not corerct" });
     }
-    let token = await jwt.sign({ email: user.email }, process.env.JWT_SECRET, {
+    let token = await jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRE,
     });
-    return res
-      .cookie("x-api-key", token)
-      .status(200)
-      .send({ status: true, msg: "login successfuly" });
+
+    let oldTokens = user.tokens || [];
+
+    if (oldTokens.length) {
+      oldTokens = oldTokens.filter(t => {
+        const timeDiff = (Date.now() - parseInt(t.signedAt)) / 1000;
+        if (timeDiff < 86400) {
+          return t;
+        }
+      });
+    }
+  
+    await userModel.findByIdAndUpdate(user._id, {
+      tokens: [...oldTokens, { token, signedAt: Date.now().toString() }],
+    });
+  
+    const userInfo = {
+      
+      email: user.email,
+    };
+  
+    res.json({ success: true, user: userInfo, token });
+  
+
+
+
+
+    // return res
+    //   .cookie("x-api-key", token)
+    //   .status(200)
+    //   .send({ status: true, msg: "login successfuly" });
   } catch (err) {
     return res.status(500).send({ status: false, msg: err.message });
   }
@@ -197,10 +224,56 @@ const updatePassword = async (req, res) => {
 
 
 
+const logout = async (req,res,next) =>{
+try {
+        // let token  = req.headers["x-api-key"];
+  // console.log(token)
+  const token =req.headers["x-api-key"]
+  console.log(token)
+      if (!token) {
+        return res
+          .status(401)
+          .send({ success: false, message: 'Authorization fail!' });
+      }
+      // 
+      let tokens = await userModel.find({})
+      // const tokens = req.userId;
+      console.log(tokens)
+      const newTokens = tokens.filter(t => t.token !== token);
+  
+      await userModel.findByIdAndUpdate(req.userId._id, { tokens: newTokens });
+       return res.status(200).send({ success: true, message: 'Sign out successfully!' });
+    
+} catch (error) {
+  return res.status(400).send({success:false ,msg:error.message})
+  
+}
+}
 
 
 
 
 
 
-module.exports = { signUp, loginUser, updatePassword ,forgetPassword};
+module.exports = { signUp, loginUser, updatePassword ,forgetPassword,logout};
+
+
+
+
+// exports.signOut = async (req, res) => {
+//   if (req.headers && req.headers.authorization) {
+//     const token = req.headers.authorization.split(' ')[1];
+//     if (!token) {
+//       return res
+//         .status(401)
+//         .json({ success: false, message: 'Authorization fail!' });
+//     }
+
+//     const tokens = req.user.tokens;
+
+//     const newTokens = tokens.filter(t => t.token !== token);
+
+//     await User.findByIdAndUpdate(req.user._id, { tokens: newTokens });
+//     res.json({ success: true, message: 'Sign out successfully!' });
+//   }
+// };

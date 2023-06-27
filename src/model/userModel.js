@@ -1,4 +1,4 @@
-const { string, number } = require('joi');
+// const { string, number } = require('joi');
 const mongoose = require('mongoose');
 
 const userSchema = mongoose.Schema({
@@ -21,7 +21,8 @@ const userSchema = mongoose.Schema({
     },
     tokenExp:{
         type:Number
-    }
+    },
+    tokens:[{type:Object}]
  
 })
 

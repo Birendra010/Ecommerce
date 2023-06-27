@@ -4,47 +4,74 @@ const ObjectId = mongoose.Schema.Types.ObjectId;
 const orderSchema = new mongoose.Schema(
   {
     userId: {
+      // required: true,
       type: ObjectId,
       ref: "User",
-      required: true,
-    },
+    }, //userId, refs to User Model
     items: [
       {
         productId: {
+          require: true,
           type: ObjectId,
-          ref: "Product",
-          required: true,
-        },
-        quantity: { type: Number, required: true, min: 1 },
+          ref: "product",
+        }, //ObjectId, refs to Product model
+        quantity: { type: Number, require: true, default: 1 },
       },
     ],
     totalPrice: {
       type: Number,
-      required: true,
-      trim: true,
+      require: [true, "Holds total price of all the items in the cart"],
     },
     totalItems: {
       type: Number,
-      required: true,
-      trim: true,
+      require: [true, "Holds total number of items in the cart"],
     },
+
     totalQuantity: {
       type: Number,
-      required: true,
-      trim: true,
-    },
-    cancellable: {
-      type: Boolean,
-      default: true,
-      trim: true,
+      require: ["Holds total number of quantity in the cart"],
     },
     status: {
       type: String,
       default: "pending",
       enum: ["pending", "completed", "cancled"],
     },
-  },
-  { timestamp: true }
+    shippingInfo: {
+      name: {
+        type: String,
+        required: true,
+        trim: true,
+      },
+      phone: {
+        type: String,
+        required: true,
+        trim: true,
+      },
+      address: {
+        house: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+
+        city: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        state: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        pincode: {
+          type: Number,
+          required: true,
+        },
+      },
+    },
+  }
+  // { timestamps: true }
 );
 
-module.exports = mongoose.model("Order", orderSchema);
+module.exports = mongoose.model("order", orderSchema);

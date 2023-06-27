@@ -2,19 +2,31 @@ const express = require('express');
 const router = express.Router();
 const userController = require('../controller/userController')
 const productCotroller = require('../controller/productController') 
-// const midd=require('../middleware/auth')
+const cartController = require('../controller/cartController')
+const orderController = require('../controller/orderController')
+const midd=require('../middleware/auth')
 
 
-
+//user Api
 router.post('/user',userController.signUp)
 router.post('/login',userController.loginUser)
 router.post('/forgetPassword',userController.forgetPassword)
 router.put('/resetPassword',userController.updatePassword)
-// router.get('/logout',midd.authentication,userController.logout)
+router.get('/logout',midd.authentication,userController.logout)
+
+
+//product Api
+router.post('/product/',productCotroller.createProduct)
 
 
 
-router.post('/product',productCotroller.createProduct)
+//cart api
+router.post('/cart',midd.authentication,cartController.createCart)
+router.get('/cart',midd.authentication,cartController.getCartDetails)
+
+
+//order
+router.post('/order',midd.authentication,orderController.createOrder)
 
 
 router.all("/*",(req,res)=>{
