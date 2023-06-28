@@ -1,6 +1,6 @@
 const Joi = require('joi')
 
-const authSchema = Joi.object({
+const authSchema = Joi.object().keys({
 email:Joi.string().email().lowercase().required().regex(/^([A-Za-z0-9._]{3,}@[A-Za-z]{3,}[.]{1}[A-Za-z.]{2,6})+$/),
 password:Joi.string().min(2).required(),
 

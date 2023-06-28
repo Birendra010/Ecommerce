@@ -13,10 +13,12 @@ const orderSchema = new mongoose.Schema(
         productId: {
           require: true,
           type: ObjectId,
-          ref: "product",
+          ref: "Product",
         }, //ObjectId, refs to Product model
         quantity: { type: Number, require: true, default: 1 },
+        _id:false
       },
+      
     ],
     totalPrice: {
       type: Number,
@@ -31,11 +33,13 @@ const orderSchema = new mongoose.Schema(
       type: Number,
       require: ["Holds total number of quantity in the cart"],
     },
-    status: {
-      type: String,
-      default: "pending",
-      enum: ["pending", "completed", "cancled"],
+    status:{
+      type:String,
+      enum:["pending", "completed", "cancelled"],
+      default:"pending"
+
     },
+
     shippingInfo: {
       name: {
         type: String,

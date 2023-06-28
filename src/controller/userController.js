@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const { authSchema } = require("../validators/schemaValidation");
 const nodemailer = require("nodemailer");
 const randomstring = require("randomstring");
+ const tokenList ={};
 
 const sendResetPasswordMail = async(email,token)=>{
 try {
@@ -22,7 +23,7 @@ try {
     from:process.env.USER_EMAIL,
     to:email,
     subject:"for reset password",
-    Text:"http://localhost:5000/resetPassword?token="+token+""
+    html:"http://localhost:5000/resetPassword?token="+token+""
   }
   transporter.sendMail(mailOptions,function(error,info){
     if(error){
@@ -101,55 +102,94 @@ const loginUser = async function (req, res) {
     if (!hashPassword) {
       return res.status(404).send({ msg: "email or Password are not corerct" });
     }
-    let token = await jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+    let token =  jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRE,
     });
+    let refreshToken = jwt.sign({userId:user._id},process.env.REF_TOKEN_SECRET,{expiresIn:process.env.REF_TOKEN_EXPIRE})
+    const response = {
+
+      "status": "Logged in",
+      "token": token,
+      "refreshToken": refreshToken,
+    }
+    tokenList[refreshToken]=response
 
     let oldTokens = user.tokens || [];
 
     if (oldTokens.length) {
       oldTokens = oldTokens.filter(t => {
-        const timeDiff = (Date.now() - parseInt(t.signedAt)) / 1000;
-        if (timeDiff < 86400) {
+        if (t.signedAt < Date.now()){
           return t;
         }
       });
     }
-  
     await userModel.findByIdAndUpdate(user._id, {
-      tokens: [...oldTokens, { token, signedAt: Date.now().toString() }],
+      tokens: [...oldTokens, { token, signedAt: new Date(Date.now()+ (5*60*1000))}],
     });
-  
     const userInfo = {
-      
       email: user.email,
     };
+    res.json({ success: true, user: userInfo, response });
   
-    res.json({ success: true, user: userInfo, token });
-  
-
-
-
-
-    // return res
-    //   .cookie("x-api-key", token)
-    //   .status(200)
-    //   .send({ status: true, msg: "login successfuly" });
   } catch (err) {
     return res.status(500).send({ status: false, msg: err.message });
   }
 };
 
+
+
+//refreshToken
+
+
+const refreshToken=  (req,res) => {
+  try {
+  // refresh the damn token
+  const postData = req.body
+  // if refresh token exists
+
+  if((postData.refreshToken) && (postData.refreshToken in tokenList)) {
+
+    let decodedToken = jwt.verify(postData.refreshToken,process.env.REF_TOKEN_SECRET);
+      const token = jwt.sign({email:decodedToken.userId},process.env.JWT_SECRET, { expiresIn:'5m'})
+
+      const response = {
+          "token": token,
+      }
+      // update the token in the list
+      tokenList[postData.refreshToken].token = token
+      res.status(200).json(response);        
+  } else {
+      res.status(404).send('Invalid request')
+  }
+
+} catch (error) {
+  return res.status(500).send({msg:error.message})
+    
+}}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // send mail to forget  password 
 const forgetPassword = async (req, res) => {
   try {
     const email = req.body.email;
-    const valid = authSchema.validate(email);
-    if (valid.error) {
-      return res.status(400).send(valid.error.details[0].message);
+    
+    const userData = await userModel.findOne({email})
+    if(!userData){
+      return res.status(404).send({success:false,msg:" email not found"})
     }
-
-    const userData = await userModel.findOne({ email: email });
     if (userData) {
       const randomString = randomstring.generate();
 
@@ -163,12 +203,8 @@ const forgetPassword = async (req, res) => {
           new: true,
         }
       );
-
       sendResetPasswordMail(userData.email, randomString);
-      res
-        .status(200)
-        .send({
-          success: true,
+      res.status(200).send({success: true,
           msg: "please check your inbox of mail and reset your password ",
         });
     } else {
@@ -223,29 +259,22 @@ const updatePassword = async (req, res) => {
 
 
 
-
-const logout = async (req,res,next) =>{
+///logout
+const logout = async (req,res) =>{
+  let userId =req.user.userId
 try {
-        // let token  = req.headers["x-api-key"];
-  // console.log(token)
-  const token =req.headers["x-api-key"]
-  console.log(token)
-      if (!token) {
-        return res
-          .status(401)
-          .send({ success: false, message: 'Authorization fail!' });
-      }
-      // 
-      let tokens = await userModel.find({})
-      // const tokens = req.userId;
-      console.log(tokens)
-      const newTokens = tokens.filter(t => t.token !== token);
-  
-      await userModel.findByIdAndUpdate(req.userId._id, { tokens: newTokens });
-       return res.status(200).send({ success: true, message: 'Sign out successfully!' });
+    let token  = req.headers["x-api-key"];
+    const tokens = req.user.tokens 
+     
+      let user = await userModel.findById(userId)
+  const newTokens = user.tokens.filter(t => t.token !== token)
+      
+await userModel.findByIdAndUpdate(userId ,{tokens:newTokens},{new:true});
+      
+  return res.status(200).send({ success: true, message: 'Sign out successfully!'});
     
 } catch (error) {
-  return res.status(400).send({success:false ,msg:error.message})
+  return res.status(500).send({success:false ,msg:error.message})
   
 }
 }
@@ -254,26 +283,8 @@ try {
 
 
 
-
-module.exports = { signUp, loginUser, updatePassword ,forgetPassword,logout};
-
+module.exports = { signUp, loginUser, updatePassword ,forgetPassword,logout,refreshToken};
 
 
 
-// exports.signOut = async (req, res) => {
-//   if (req.headers && req.headers.authorization) {
-//     const token = req.headers.authorization.split(' ')[1];
-//     if (!token) {
-//       return res
-//         .status(401)
-//         .json({ success: false, message: 'Authorization fail!' });
-//     }
 
-//     const tokens = req.user.tokens;
-
-//     const newTokens = tokens.filter(t => t.token !== token);
-
-//     await User.findByIdAndUpdate(req.user._id, { tokens: newTokens });
-//     res.json({ success: true, message: 'Sign out successfully!' });
-//   }
-// };
