@@ -1,17 +1,12 @@
-const mongoose = require("mongoose");
 const cartModel = require("../model/cartModel");
 const orderModel = require("../model/orderModel");
 const productModel = require('../model/productModel')
-const userModel = require("../model/userModel");
-
-// const { isValidId } = require("../validators/validator");
 
 const createOrder = async (req, res) => {
   try {
     let userId = req.user.userId
     let {name,phone,house,city,state,pincode,productId}=req.body;
 
-   
    //////input validation
     let cartDetail = await cartModel.findOne({userId}).populate("items.productId" ,("stock"))
         if(!cartDetail){
@@ -25,8 +20,6 @@ const createOrder = async (req, res) => {
         if(filter.length >0){
             return res.status(400).send({status:false,msg:"some product are out of stock",filter})
         }
-
-   
     let order  = {
       userId,
     items:cartDetail.items,
@@ -66,13 +59,8 @@ const createOrder = async (req, res) => {
 const getOrder= async function (req, res) {
   try {
     let userId = req.user.userId
-  //   console.log(userId)
-
     //checking if the cart exist with this userId or not
-    let findOrder = await orderModel
-      .findOne({userId:userId})
-      
-      .populate("items.quantity","totalPrice ")
+    let findOrder = await orderModel.findOne({userId:userId}) .populate("items.quantity","totalPrice ")
 
     if (!findOrder)
       return res.status(404)
@@ -88,35 +76,28 @@ const getOrder= async function (req, res) {
 
 
 
-const updateOrder = async function (req, res) {
+const cancelOrder = async function (req, res) {
   try {
     let userId = req.user.userId
     let data = req.body;
     let { productId} = data;
     let orderDetails = await orderModel.findOne({userId,status:"pending"}).populate("items.productId");
-    // let orderDelt = await orderModel.findOne({userId})
-    console.log(orderDetails.items[0])
+if(!orderDetails){
+    return res.status(400).send({success:false,msg:"items cenceled already"})
+}
     orderDetails.items.forEach(async(item) => {
         await productModel.findByIdAndUpdate(
         item.productId,
         {$inc: {stock: +item.quantity}},{new:true})
     })
-      let orderStatus = await orderModel.findOneAndUpdate(orderDetails._id,
-
+      let orderStatus = await orderModel.findByIdAndUpdate(orderDetails._id,
        { $set:{ status:"cancelled"}} ,
         { new: true }
       )
-      return res
-        .status(200)
-        .send({
-          status: true,
-          message: "Success",
-          data: orderStatus,
-        });
-    }
-   catch (error) {
-    res.status(500).send({ status: false, error: error.message });
+      return res.status(200).send({status: true,message: "Success",data: orderStatus,});
+    }catch (error) {
+    return res.status(500).send({ status: false, error: error.message });
   }
 }
 
-module.exports = { createOrder ,getOrder,updateOrder};
+module.exports = { createOrder ,getOrder,cancelOrder};

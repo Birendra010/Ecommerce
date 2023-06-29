@@ -2,17 +2,6 @@ const mongoose = require("mongoose");
 const ObjectId = mongoose.Schema.Types.ObjectId;
 
 
-
-const jwt = require("jsonwebtoken");
-
-const jwtToken = (id)=>{
-    return jwt.sign({_id:id},process.env.JWT_SECRET,{expiresIn:"5m"}) 
-}
-const verifyToken = (token)=>{
-  return  jwt.verify(token,process.env.JWT_SECRET);
-
-}
-
 const isValidObjectId = (value) => {
   return mongoose.Types.ObjectId.isValid(value)
 }
@@ -33,4 +22,4 @@ const isValidBody = (reqBody) => {
   };
   
 
-  module.exports ={isValidBody,jwtToken,isValidId,isValid,isValidObjectId,verifyToken}
+  module.exports ={isValidBody,isValidId,isValid,isValidObjectId}

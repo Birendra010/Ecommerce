@@ -7,35 +7,35 @@ const orderController = require('../controller/orderController')
 const midd=require('../middleware/auth')
 
 
-//user Api
-router.post('/user',userController.signUp)
+//user route
+router.post('/signUp',userController.signUp)
 router.post('/login',userController.loginUser)
-router.post('/forgetPassword',userController.forgetPassword)
-router.put('/resetPassword',userController.updatePassword)
+router.post('/forgotPassword',userController.forgetPassword)
+router.put('/resetPassword/:emailToken',userController.updatePassword)
 router.get('/logout',midd.authentication,userController.logout)
-router.post('/refreshToken',userController.refreshToken)
+router.post('/refresh-token',userController.refreshToken)
 
 
-//product Api
-router.post('/product/',productCotroller.createProduct)
+//product route
+router.post('/product',productCotroller.createProduct)
 
 
 
-//cart api
+//cart route
 router.post('/cart',midd.authentication,cartController.createCart)
 router.get('/cart',midd.authentication,cartController.getCartDetails)
 
 
-//order
+//order route
 router.post('/order',midd.authentication,orderController.createOrder)
 router.get('/order',midd.authentication,orderController.getOrder)
-router.put('/order',midd.authentication,orderController.updateOrder)
+router.put('/order',midd.authentication,orderController.cancelOrder)
 
 
 
 
 router.all("/*",(req,res)=>{
-    return res.status(404).send({status:false,msg:" invalid request   "})
+    return res.status(404).send({status:false,msg:"   provide a correct end point "})
 })
 
 

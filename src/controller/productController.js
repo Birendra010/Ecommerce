@@ -13,12 +13,8 @@ const createProduct = async function (req, res) {
     if (valid.error) {
       return res.status(400).send(valid.error.details[0].message);
     }
-
     let product = await productModel.create(req.body);
-    return res.status(201).send({
-      status: true,
-      message: "Success",
-      data: product,
+    return res.status(201).send({status: true,message: "Success",data: product,
     });
   } catch (error) {
     return res.status(500).send({ status: false, message: error.message });

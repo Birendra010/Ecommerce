@@ -2,43 +2,11 @@ const userModel = require("../model/userModel");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { authSchema } = require("../validators/schemaValidation");
-const nodemailer = require("nodemailer");
 const randomstring = require("randomstring");
- const tokenList ={};
+const {sendResetPasswordMail} = require('../validators/sendMail')
 
-const sendResetPasswordMail = async(email,token)=>{
-try {
 
-  const transporter = nodemailer.createTransport({
-    host:'smtp.gmail.com',
-    port:587,
-    secure:false,
-    requireTLS:true,
-    auth:{
-      user:process.env.USER_EMAIL,
-      pass:process.env.EMAIL_PASS
-    }
-  });
-  const mailOptions ={
-    from:process.env.USER_EMAIL,
-    to:email,
-    subject:"for reset password",
-    html:"http://localhost:5000/resetPassword?token="+token+""
-  }
-  transporter.sendMail(mailOptions,function(error,info){
-    if(error){
-      console.log(error)
-    }
-    else{
-      console.log("mail has been sent:- ",info.response);
-    }
-  })
-
-} catch (error) {
- return error
-}
-}
-
+//register user
 const signUp = async (req, res) => {
   try {
     let { email, password } = req.body;
@@ -53,9 +21,7 @@ const signUp = async (req, res) => {
     }
     let checkEmail = await userModel.findOne({ email: email });
     if (checkEmail)
-      return res
-        .status(409)
-        .send({ status: false, message: "Email already exist" });
+      return res.status(409).send({ status: false, message: "Email already exist" });
 
     let hash = await bcrypt.hash(req.body.password, 10);
     const user = new userModel({
@@ -66,10 +32,7 @@ const signUp = async (req, res) => {
     let token =  jwt.sign({ email: user.email }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRE,
     });
-    return res
-      .cookie("x-api-key", token)
-      .status(201)
-      .send({ status: true, message: "Success", data: savedData });
+    return res.cookie("x-api-key", token).status(201).send({ status: true, message: "Success", data: savedData });
   } catch (err) {
     res.status(500).send({ status: false, msg: err.message });
   }
@@ -94,9 +57,7 @@ const loginUser = async function (req, res) {
     }
     let user = await userModel.findOne({ email:email });
     if (!user) {
-      return res
-        .status(404)
-        .send({ status: false, msg: "email or Password are not corerct" });
+      return res.status(404).send({ status: false, msg: "email or Password are not corerct" });
     }
     let hashPassword = await bcrypt.compare(Password, user.password);
     if (!hashPassword) {
@@ -107,15 +68,11 @@ const loginUser = async function (req, res) {
     });
     let refreshToken = jwt.sign({userId:user._id},process.env.REF_TOKEN_SECRET,{expiresIn:process.env.REF_TOKEN_EXPIRE})
     const response = {
-
       "status": "Logged in",
       "token": token,
       "refreshToken": refreshToken,
     }
-    tokenList[refreshToken]=response
-
     let oldTokens = user.tokens || [];
-
     if (oldTokens.length) {
       oldTokens = oldTokens.filter(t => {
         if (t.signedAt < Date.now()){
@@ -129,7 +86,7 @@ const loginUser = async function (req, res) {
     const userInfo = {
       email: user.email,
     };
-    res.json({ success: true, user: userInfo, response });
+    res.status(200).send({ success: true, user: userInfo, response });
   
   } catch (err) {
     return res.status(500).send({ status: false, msg: err.message });
@@ -139,24 +96,16 @@ const loginUser = async function (req, res) {
 
 
 //refreshToken
-
-
 const refreshToken=  (req,res) => {
   try {
-  // refresh the damn token
+  
   const postData = req.body
-  // if refresh token exists
-
-  if((postData.refreshToken) && (postData.refreshToken in tokenList)) {
-
+  if(postData.refreshToken){
     let decodedToken = jwt.verify(postData.refreshToken,process.env.REF_TOKEN_SECRET);
-      const token = jwt.sign({email:decodedToken.userId},process.env.JWT_SECRET, { expiresIn:'5m'})
-
+      const token = jwt.sign({userId:decodedToken.userId},process.env.JWT_SECRET, { expiresIn:'5m'})
       const response = {
           "token": token,
       }
-      // update the token in the list
-      tokenList[postData.refreshToken].token = token
       res.status(200).json(response);        
   } else {
       res.status(404).send('Invalid request')
@@ -168,24 +117,10 @@ const refreshToken=  (req,res) => {
 }}
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 // send mail to forget  password 
 const forgetPassword = async (req, res) => {
   try {
     const email = req.body.email;
-    
     const userData = await userModel.findOne({email})
     if(!userData){
       return res.status(404).send({success:false,msg:" email not found"})
@@ -198,11 +133,7 @@ const forgetPassword = async (req, res) => {
         {
           $set: {
             token: randomString,
-            tokenExp: Math.round(new Date(Date.now()+ (2*60*1000))),
-          },
-          new: true,
-        }
-      );
+            tokenExp: Math.round(new Date(Date.now()+ (2*60*1000))),},new: true,});
       sendResetPasswordMail(userData.email, randomString);
       res.status(200).send({success: true,
           msg: "please check your inbox of mail and reset your password ",
@@ -225,11 +156,8 @@ const updatePassword = async (req, res) => {
     if(!tokenData){
       return res.status(400).send({success:false,msg:"token expired or empty"})
     }
-   
     if (tokenData.tokenExp < Date.now()) {
-      return res
-        .status(400)
-        .send({ success: false, msg: "this token has been expired" });
+      return res.status(400).send({ success: false, msg: "this token has been expired" });
     }
     if (tokenData) {
       const password = req.body.password;
@@ -240,12 +168,7 @@ const updatePassword = async (req, res) => {
         { new: true }
       );
       return res
-        .status(200)
-        .send({
-          success: true,
-          msg: "User password has been reset",
-          data: userData,
-        });
+        .status(200).send({success: true,msg: "User password has been reset",data: userData,});
     } else {
       res.status(400).send({ success: false, msg: "invalid token " });
     }
@@ -284,7 +207,3 @@ await userModel.findByIdAndUpdate(userId ,{tokens:newTokens},{new:true});
 
 
 module.exports = { signUp, loginUser, updatePassword ,forgetPassword,logout,refreshToken};
-
-
-
-
